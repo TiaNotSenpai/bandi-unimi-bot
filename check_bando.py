@@ -79,6 +79,10 @@ def main():
                 invia_telegram(chat_lei, msg_negativo)
             else:
                 print("Controllo orario automatico: Nessun bando rilevato. Il bot resta in silenzio.")
+            elif controllo_automatico:
+                # Conferma di vita SOLO A TE e SILENZIOSA ogni 2 ore
+                msg_heartbeat = "📡 *Heartbeat:* Controllo automatico OK. Nulla di nuovo."
+                invia_telegram(chat_lui, msg_heartbeat, silenzioso=True)
 
     except Exception as e:
         print(f"Errore script: {e}")
