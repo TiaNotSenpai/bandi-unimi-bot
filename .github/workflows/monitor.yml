@@ -1,0 +1,37 @@
+name: Controlla Bando UniMi
+
+on:
+  schedule:
+    # Esegue ogni 2 ore
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Bottone per lanciarlo a mano
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Esegui lo script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID_LEI: ${{ secrets.CHAT_ID_LEI }}
+          CHAT_ID_LUI: ${{ secrets.CHAT_ID_LUI }}
+        run: python check_bando.py
+
+      - name: Salva lo stato se è cambiato
+        run: |
+          git config user.name 'GitHub Actions Bot'
+          git config user.email 'actions@github.com'
+          git add last_status.txt
+          git diff --staged --quiet || git commit -m 'Aggiorna stato bando'
+          git push
