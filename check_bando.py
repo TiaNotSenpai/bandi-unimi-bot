@@ -25,7 +25,11 @@ def main():
     chat_lei = os.environ['CHAT_ID_LEI']
     chat_lui = os.environ['CHAT_ID_LUI']
     
-    old_status = FILE_DI_STATO.read_text() if FILE_DI_STATO.exists() else "NOT_FOUND"
+    if not FILE_DI_STATO.exists():
+        FILE_DI_STATO.write_text("NOT_FOUND")
+    
+    old_status = FILE_DI_STATO.read_text()
+
 
     try:
         # 1. Scarichiamo il sito (mascherati da browser normale per non farsi bloccare)
