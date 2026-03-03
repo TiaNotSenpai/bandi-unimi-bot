@@ -2,6 +2,7 @@ import requests
 import os
 import re
 from pathlib import Path
+from datetime import datetime
 
 # --- Configurazione ---
 URL_SITO = "https://www.unimi.it/it/corsi/laurea-triennale/scienze-psicologiche-la-prevenzione-e-la-cura"
@@ -11,7 +12,6 @@ FILE_DI_STATO = Path("last_status.txt")
 def invia_telegram(chat_id, testo, silenzioso=False):
     token = os.environ['TELEGRAM_TOKEN']
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    # disable_notification=True fa arrivare il messaggio senza suono/vibrazione
     payload = {
         "chat_id": chat_id, 
         "text": testo, 
@@ -25,7 +25,6 @@ def invia_telegram(chat_id, testo, silenzioso=False):
         print(f"Errore Telegram: {e}")
 
 def main():
-    # Detect dell'evento (schedule = orologio, workflow_dispatch = bottone)
     evento = os.environ.get('GITHUB_EVENT_NAME', 'unknown')
     controllo_manuale = (evento == 'workflow_dispatch')
     controllo_automatico = (evento == 'schedule')
@@ -42,10 +41,16 @@ def main():
         res = requests.get(URL_SITO, headers=headers, timeout=15)
         html = res.text
         
+        # --- RACCOLTA DATI PER LA TUA TRANQUILLITÀ ---
+        status_http = res.status_code
+        byte_letti = len(html)
+        ora_attuale = datetime.now().strftime("%H:%M:%S")
+        
         start_pos = html.lower().find(MARCATORE.lower())
+        
         if start_pos == -1:
-            if controllo_manuale:
-                invia_telegram(chat_lui, "⚠️ *Errore:* Sezione non trovata sul sito.")
+            # SEZIONE NON TROVATA: Ti avvisa sempre, anche se è l'orologio automatico!
+            invia_telegram(chat_lui, f"⚠️ *ALLARME STRUTTURA SITO*\nIl sito ha risposto ({status_http}) ma non trovo più la sezione '{MARCATORE}'. Hanno rifatto la pagina?")
             return
 
         snippet = html[start_pos : start_pos + 3000]
@@ -56,27 +61,27 @@ def main():
             if old_status != "FOUND":
                 msg = f"🚨 *BANDO 2026 RILEVATO!* 🚨\n\n👉 {URL_SITO}"
                 invia_telegram(chat_lei, msg)
-                invia_telegram(chat_lui, "✅ Notifica inviata a Evelyn.")
+                invia_telegram(chat_lui, f"✅ Notifica bando inviata a Evelyn.\n(Byte letti: {byte_letti})")
                 FILE_DI_STATO.write_text("FOUND")
         else:
             if old_status == "FOUND":
                 FILE_DI_STATO.write_text("NOT_FOUND")
             
-            # --- LOGICA DELLE CONFERME DI FUNZIONAMENTO ---
+            # --- REPORT PER TE (Con Metriche Reali) ---
+            dettagli = f"\n\n📊 *Dettagli Tecnici (per Tia):*\n- HTTP: {status_http} (OK)\n- HTML Letti: {byte_letti} byte\n- Target: Sezione trovata\n- Ora UTC: {ora_attuale}"
+            
             if controllo_manuale:
-                # Risposta a te e a lei per il comando manuale (con suono)
-                msg_negativo = "🤷‍♂️ *Nessuna novità*\nIl bando 2026 non c'è ancora."
-                invia_telegram(chat_lui, msg_negativo)
-                invia_telegram(chat_lei, msg_negativo)
+                # A lei arriva semplice, a te con i dati
+                invia_telegram(chat_lei, "🤷‍♂️ *Nessuna novità*\nIl bando 2026 non c'è ancora.")
+                invia_telegram(chat_lui, f"🤷‍♂️ *Nessuna novità*{dettagli}")
             
             elif controllo_automatico:
-                # Conferma di vita SOLO A TE e SILENZIOSA ogni 2 ore
-                msg_heartbeat = "📡 *Heartbeat:* Controllo automatico OK. Nulla di nuovo."
-                invia_telegram(chat_lui, msg_heartbeat, silenzioso=True)
+                # Heartbeat per te ogni 2 ore, rigorosamente silenzioso
+                invia_telegram(chat_lui, f"📡 *Heartbeat OK*{dettagli}", silenzioso=True)
 
     except Exception as e:
-        if controllo_manuale:
-            invia_telegram(chat_lui, f"❌ Errore: {e}")
+        # Se la connessione fallisce per qualsiasi motivo, tu lo saprai!
+        invia_telegram(chat_lui, f"❌ *Errore Esecuzione Python:*\n{e}")
 
 if __name__ == "__main__":
     main()
