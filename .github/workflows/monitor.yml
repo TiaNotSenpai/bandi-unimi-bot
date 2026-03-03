@@ -3,7 +3,7 @@ name: Controlla Bando UniMi
 on:
   schedule:
     # Esegue ogni 2 ore
-    - cron: '0 */2 * * *'
+    - cron: '30 */2 * * *'
   workflow_dispatch: # Bottone per lanciarlo a mano
 
 jobs:
